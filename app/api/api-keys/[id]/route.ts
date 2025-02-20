@@ -13,39 +13,14 @@ export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  const id = await Promise.resolve(params.id);
+
   try {
     const body = await request.json();
     const validatedData = updateApiKeySchema.parse(body);
 
-    // Cek apakah API key exists
-    const existingKey = await prisma.apiKey.findUnique({
-      where: { id: params.id },
-    });
-
-    if (!existingKey) {
-      return NextResponse.json(
-        { error: "API key tidak ditemukan" },
-        { status: 404 }
-      );
-    }
-
-    // Cek nama duplikat jika nama diubah
-    if (body.name !== existingKey.name) {
-      const duplicateName = await prisma.apiKey.findFirst({
-        where: { name: body.name },
-      });
-
-      if (duplicateName) {
-        return NextResponse.json(
-          { error: "Nama API key sudah digunakan" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Update API key
     const apiKey = await prisma.apiKey.update({
-      where: { id: params.id },
+      where: { id },
       data: validatedData,
     });
 
@@ -55,14 +30,21 @@ export async function PUT(
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Data tidak valid", details: error.errors },
-        { status: 400 }
+        {
+          error: "Data tidak valid",
+          details: error.errors,
+        },
+        {
+          status: 400,
+        }
       );
     }
 
     return NextResponse.json(
       { error: "Gagal memperbarui API key" },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
@@ -71,33 +53,21 @@ export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  const id = await Promise.resolve(params.id);
+
   try {
-    // Cek apakah API key exists
-    const existingKey = await prisma.apiKey.findUnique({
-      where: { id: params.id },
-    });
-
-    if (!existingKey) {
-      return NextResponse.json(
-        { error: "API key tidak ditemukan" },
-        { status: 404 }
-      );
-    }
-
-    // Hapus API key
     await prisma.apiKey.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
-    return NextResponse.json(
-      { message: "API key berhasil dihapus" },
-      { status: 200 }
-    );
+    return NextResponse.json({ message: "API key berhasil dihapus" });
   } catch (error) {
     console.error("Error deleting API key:", error);
     return NextResponse.json(
       { error: "Gagal menghapus API key" },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }

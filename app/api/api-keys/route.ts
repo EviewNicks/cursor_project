@@ -1,8 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Redis } from "@upstash/redis";
-import { kv } from "@vercel/kv";
 
 // Schema validasi untuk API key
 const apiKeySchema = z.object({
@@ -13,87 +11,21 @@ const apiKeySchema = z.object({
   monthlyLimit: z.number().min(1, "Batasan bulanan harus lebih dari 0"),
 });
 
-// Schema validasi untuk query parameters
-const querySchema = z.object({
-  page: z.string().optional().transform(Number).default("1"),
-  limit: z.string().optional().transform(Number).default("10"),
-  search: z.string().optional(),
-});
-
-// Cache key
-const CACHE_KEY = "api-keys-list";
-const CACHE_TTL = 60; // 60 seconds
-
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const { page, limit, search } = querySchema.parse(
-      Object.fromEntries(searchParams)
-    );
-
-    // Generate cache key berdasarkan parameter
-    const cacheKey = `${CACHE_KEY}:${page}:${limit}:${search || ""}`;
-
-    // Coba ambil dari cache
-    const cachedData = await kv.get(cacheKey);
-    if (cachedData) {
-      return NextResponse.json(cachedData);
-    }
-
-    // Build query
-    const where = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { key: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : {};
-
-    // Get total count untuk pagination
-    const total = await prisma.apiKey.count({ where });
-
-    // Get data dengan pagination
     const apiKeys = await prisma.apiKey.findMany({
-      where,
       orderBy: {
         createdAt: "desc",
       },
-      skip: (page - 1) * limit,
-      take: limit,
-      select: {
-        id: true,
-        name: true,
-        key: true,
-        status: true,
-        type: true,
-        usage: true,
-        monthlyLimit: true,
-        createdAt: true,
-      },
     });
-
-    const result = {
-      data: apiKeys,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
-
-    // Simpan ke cache
-    await kv.set(cacheKey, result, {
-      ex: CACHE_TTL,
-    });
-
-    return NextResponse.json(result);
+    return NextResponse.json(apiKeys);
   } catch (error) {
     console.error("Error fetching API keys:", error);
     return NextResponse.json(
       { error: "Gagal mengambil data API keys" },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
@@ -103,28 +35,25 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = apiKeySchema.parse(body);
 
-    // Gunakan transaction untuk memastikan konsistensi data
-    const apiKey = await prisma.$transaction(async (tx) => {
-      // Cek nama duplikat dalam transaction
-      const existingKey = await tx.apiKey.findFirst({
-        where: { name: validatedData.name },
-      });
-
-      if (existingKey) {
-        throw new Error("DUPLICATE_NAME");
-      }
-
-      return tx.apiKey.create({
-        data: {
-          ...validatedData,
-          usage: 0,
-        },
-      });
+    // Cek apakah nama sudah digunakan
+    const existingKey = await prisma.apiKey.findFirst({
+      where: { name: validatedData.name },
     });
 
-    // Invalidate cache setelah create
-    const cachePattern = `${CACHE_KEY}:*`;
-    await kv.del(cachePattern);
+    if (existingKey) {
+      return NextResponse.json(
+        { error: "Nama API key sudah digunakan" },
+        { status: 400 }
+      );
+    }
+
+    // Buat API key baru
+    const apiKey = await prisma.apiKey.create({
+      data: {
+        ...validatedData,
+        usage: 0,
+      },
+    });
 
     return NextResponse.json(apiKey, { status: 201 });
   } catch (error) {
@@ -132,21 +61,21 @@ export async function POST(request: Request) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Data tidak valid", details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    if (error instanceof Error && error.message === "DUPLICATE_NAME") {
-      return NextResponse.json(
-        { error: "Nama API key sudah digunakan" },
-        { status: 400 }
+        {
+          error: "Data tidak valid",
+          details: error.errors,
+        },
+        {
+          status: 400,
+        }
       );
     }
 
     return NextResponse.json(
       { error: "Gagal membuat API key" },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }

@@ -25,11 +25,7 @@ import {
 } from "@/lib/hooks/use-api-keys";
 
 export default function AdminPage() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const limit = 10;
-
-  const { data, isLoading } = useApiKeys(page, limit, search);
+  const { data: apiKeys, isLoading } = useApiKeys();
   const createApiKey = useCreateApiKey();
   const updateApiKey = useUpdateApiKey();
   const deleteApiKey = useDeleteApiKey();
@@ -72,7 +68,7 @@ export default function AdminPage() {
 
   const handleDeleteKey = async (id: string) => {
     try {
-      const keyToDelete = data?.data.find((key) => key.id === id);
+      const keyToDelete = apiKeys?.find((key) => key.id === id);
       await deleteApiKey.mutateAsync(id);
       setIsOpenDeleteDialog(false);
       setSelectedApiKey(null);
@@ -106,11 +102,6 @@ export default function AdminPage() {
       });
   };
 
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setPage(1);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -141,23 +132,13 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="mb-4">
-          <input
-            type="text"
-            placeholder="Cari API key..."
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="w-full max-w-xs px-4 py-2 rounded-lg border dark:bg-gray-800 dark:border-gray-700"
-          />
-        </div>
-
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow">
           <div className="overflow-x-auto">
             {isLoading ? (
               <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                 Memuat data...
               </div>
-            ) : data?.data.length === 0 ? (
+            ) : apiKeys?.length === 0 ? (
               <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                 Belum ada API key. Klik "Tambah API Key" untuk membuat key baru.
               </div>
@@ -189,7 +170,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {data?.data.map((apiKey) => (
+                  {apiKeys?.map((apiKey) => (
                     <tr
                       key={apiKey.id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -288,24 +269,6 @@ export default function AdminPage() {
             )}
           </div>
         </div>
-
-        {data && data.pagination.totalPages > 1 && (
-          <div className="mt-4 flex justify-center gap-2">
-            {Array.from({ length: data.pagination.totalPages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setPage(i + 1)}
-                className={`px-4 py-2 rounded-lg ${
-                  page === i + 1
-                    ? "bg-black text-white"
-                    : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <ApiKeyDialog

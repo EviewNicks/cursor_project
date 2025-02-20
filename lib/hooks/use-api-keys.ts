@@ -1,27 +1,11 @@
 import { ApiKey } from "@/app/admin/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-type ApiKeysResponse = {
-  data: ApiKey[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-};
-
-export function useApiKeys(page = 1, limit = 10, search?: string) {
-  return useQuery<ApiKeysResponse>({
-    queryKey: ["api-keys", page, limit, search],
+export function useApiKeys() {
+  return useQuery({
+    queryKey: ["api-keys"],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(limit),
-        ...(search && { search }),
-      });
-
-      const response = await fetch(`/api/api-keys?${params}`);
+      const response = await fetch("/api/api-keys");
       if (!response.ok) throw new Error("Failed to fetch API keys");
       return response.json();
     },
@@ -81,4 +65,4 @@ export function useDeleteApiKey() {
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
     },
   });
-} 
+}
