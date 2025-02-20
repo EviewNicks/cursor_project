@@ -27,7 +27,9 @@ const CACHE_TTL = 60; // 60 seconds
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const { page, limit, search } = querySchema.parse(Object.fromEntries(searchParams));
+    const { page, limit, search } = querySchema.parse(
+      Object.fromEntries(searchParams)
+    );
 
     // Generate cache key berdasarkan parameter
     const cacheKey = `${CACHE_KEY}:${page}:${limit}:${search || ""}`;
