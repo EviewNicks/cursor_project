@@ -1,11 +1,27 @@
 import { ApiKey } from "@/app/admin/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export function useApiKeys() {
-  return useQuery({
-    queryKey: ["api-keys"],
+type ApiKeysResponse = {
+  data: ApiKey[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export function useApiKeys(page = 1, limit = 10, search?: string) {
+  return useQuery<ApiKeysResponse>({
+    queryKey: ["api-keys", page, limit, search],
     queryFn: async () => {
-      const response = await fetch("/api/api-keys");
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        ...(search && { search }),
+      });
+
+      const response = await fetch(`/api/api-keys?${params}`);
       if (!response.ok) throw new Error("Failed to fetch API keys");
       return response.json();
     },
