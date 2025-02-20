@@ -35,19 +35,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = apiKeySchema.parse(body);
 
-    // Cek apakah nama sudah digunakan
-    const existingKey = await prisma.apiKey.findFirst({
-      where: { name: validatedData.name },
-    });
-
-    if (existingKey) {
-      return NextResponse.json(
-        { error: "Nama API key sudah digunakan" },
-        { status: 400 }
-      );
-    }
-
-    // Buat API key baru
     const apiKey = await prisma.apiKey.create({
       data: {
         ...validatedData,
@@ -57,25 +44,20 @@ export async function POST(request: Request) {
 
     return NextResponse.json(apiKey, { status: 201 });
   } catch (error) {
-    console.error("Error creating API key:", error);
-
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
           error: "Data tidak valid",
           details: error.errors,
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
+    console.error("Error creating API key:", error);
     return NextResponse.json(
       { error: "Gagal membuat API key" },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }

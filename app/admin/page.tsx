@@ -35,17 +35,17 @@ export default function AdminPage() {
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null);
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
 
-  const handleAddKey = async (newKey: ApiKey) => {
+  const handleAddKey = async (newKey: Omit<ApiKey, "id" | "createdAt">) => {
     try {
       await createApiKey.mutateAsync(newKey);
       setIsOpenAddDialog(false);
       toast.success("API Key berhasil dibuat", {
         description: `${newKey.name} telah ditambahkan ke daftar API key Anda.`,
       });
-    } catch (error) {
+    } catch (err) {
+      const error = err as Error;
       toast.error("Gagal membuat API Key", {
-        description:
-          "Terjadi kesalahan saat membuat API key. Silakan coba lagi.",
+        description: error.message || "Terjadi kesalahan saat membuat API key.",
       });
     }
   };
@@ -58,27 +58,29 @@ export default function AdminPage() {
       toast.success("API Key berhasil diperbarui", {
         description: `Perubahan pada ${updatedKey.name} telah disimpan.`,
       });
-    } catch (error) {
+    } catch (err) {
+      const error = err as Error;
       toast.error("Gagal memperbarui API Key", {
         description:
-          "Terjadi kesalahan saat memperbarui API key. Silakan coba lagi.",
+          error.message || "Terjadi kesalahan saat memperbarui API key.",
       });
     }
   };
 
   const handleDeleteKey = async (id: string) => {
     try {
-      const keyToDelete = apiKeys?.find((key) => key.id === id);
+      const keyToDelete = apiKeys?.find((key: ApiKey) => key.id === id);
       await deleteApiKey.mutateAsync(id);
       setIsOpenDeleteDialog(false);
       setSelectedApiKey(null);
       toast.success("API Key berhasil dihapus", {
         description: `${keyToDelete?.name} telah dihapus dari daftar API key Anda.`,
       });
-    } catch (error) {
+    } catch (err) {
+      const error = err as Error;
       toast.error("Gagal menghapus API Key", {
         description:
-          "Terjadi kesalahan saat menghapus API key. Silakan coba lagi.",
+          error.message || "Terjadi kesalahan saat menghapus API key.",
       });
     }
   };
@@ -140,7 +142,8 @@ export default function AdminPage() {
               </div>
             ) : apiKeys?.length === 0 ? (
               <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                Belum ada API key. Klik "Tambah API Key" untuk membuat key baru.
+                Belum ada API key. Klik &quot;Tambah API Key&quot; untuk membuat
+                key baru.
               </div>
             ) : (
               <table className="w-full">
@@ -170,7 +173,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {apiKeys?.map((apiKey) => (
+                  {apiKeys?.map((apiKey: ApiKey) => (
                     <tr
                       key={apiKey.id}
                       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
