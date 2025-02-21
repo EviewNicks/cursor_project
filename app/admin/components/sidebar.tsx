@@ -25,7 +25,7 @@ const navigation = [
     ],
   },
   { name: "Research Assistant", href: "/assistant", icon: BeakerIcon },
-  { name: "Research Reports", href: "/reports", icon: DocumentTextIcon },
+  { name: "Research Reports", href: "/protected", icon: DocumentTextIcon },
   { name: "API Playground", href: "/playground", icon: CommandLineIcon },
   { name: "Documentation", href: "/docs", icon: BookOpenIcon, external: true },
 ];

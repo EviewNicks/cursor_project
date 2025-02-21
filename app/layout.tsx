@@ -31,7 +31,7 @@ export default function RootLayout({
       >
         <Providers>
           {children}
-          <Toaster richColors position="top-right" />
+          <Toaster richColors closeButton position="top-center" />
         </Providers>
       </body>
     </html>
