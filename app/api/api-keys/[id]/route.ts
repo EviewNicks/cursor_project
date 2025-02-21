@@ -1,5 +1,5 @@
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const updateApiKeySchema = z.object({
@@ -9,65 +9,71 @@ const updateApiKeySchema = z.object({
   monthlyLimit: z.number().min(1, "Batasan bulanan harus lebih dari 0"),
 });
 
-export async function PUT(
-  request: Request,
+export async function GET(
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const id = await Promise.resolve(params.id);
+  try {
+    const apiKey = await prisma.apiKey.findUnique({
+      where: { id: params.id },
+    });
 
+    if (!apiKey) {
+      return NextResponse.json(
+        { message: "API Key tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ data: apiKey });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Terjadi kesalahan internal";
+    return NextResponse.json({ message: errorMessage }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     const body = await request.json();
     const validatedData = updateApiKeySchema.parse(body);
 
     const apiKey = await prisma.apiKey.update({
-      where: { id },
+      where: { id: params.id },
       data: validatedData,
     });
 
-    return NextResponse.json(apiKey);
-  } catch (error) {
-    console.error("Error updating API key:", error);
-
+    return NextResponse.json({ data: apiKey });
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        {
-          error: "Data tidak valid",
-          details: error.errors,
-        },
-        {
-          status: 400,
-        }
+        { message: "Data tidak valid", errors: error.errors },
+        { status: 400 }
       );
     }
 
-    return NextResponse.json(
-      { error: "Gagal memperbarui API key" },
-      {
-        status: 500,
-      }
-    );
+    const errorMessage =
+      error instanceof Error ? error.message : "Terjadi kesalahan internal";
+    return NextResponse.json({ message: errorMessage }, { status: 500 });
   }
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const id = await Promise.resolve(params.id);
-
   try {
     await prisma.apiKey.delete({
-      where: { id },
+      where: { id: params.id },
     });
 
-    return NextResponse.json({ message: "API key berhasil dihapus" });
-  } catch (error) {
-    console.error("Error deleting API key:", error);
-    return NextResponse.json(
-      { error: "Gagal menghapus API key" },
-      {
-        status: 500,
-      }
-    );
+    return NextResponse.json({ message: "API Key berhasil dihapus" });
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Terjadi kesalahan internal";
+    return NextResponse.json({ message: errorMessage }, { status: 500 });
   }
 }

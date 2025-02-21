@@ -47,7 +47,10 @@ const PlaygroundPage = () => {
       }
     } catch (error: unknown) {
       toast.error("Terjadi Kesalahan", {
-        description: "Gagal memvalidasi API Key. Silakan coba lagi.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Terjadi kesalahan yang tidak diketahui",
         duration: 3000,
       });
     } finally {
