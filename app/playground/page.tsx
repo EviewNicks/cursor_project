@@ -25,31 +25,29 @@ const PlaygroundPage = () => {
         body: JSON.stringify({ apiKey }),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
-      if (response.ok) {
-        // Set cookie untuk menandai API Key valid
-        Cookies.set("validApiKey", "true", { expires: 1 }); // Expired dalam 1 hari
+      if (response.ok && result.data) {
+        // Set cookie dengan API Key ID yang valid
+        Cookies.set("validApiKey", "true", { expires: 1 });
 
         toast.success("API Key Valid!", {
-          description: "Halaman /protected dapat diakses.",
+          description: result.message,
           duration: 2000,
         });
 
-        // Gunakan replace daripada push untuk menghindari history
         setTimeout(() => {
           router.replace("/protected");
         }, 1000);
       } else {
-        toast.error("API Key Tidak Valid", {
-          description: data.message,
+        toast.error("Validasi Gagal", {
+          description: result.message || "API Key tidak valid",
           duration: 3000,
         });
       }
     } catch (error: unknown) {
       toast.error("Terjadi Kesalahan", {
-        description:
-          error instanceof Error ? error.message : "Gagal memvalidasi API Key",
+        description: "Gagal memvalidasi API Key. Silakan coba lagi.",
         duration: 3000,
       });
     } finally {

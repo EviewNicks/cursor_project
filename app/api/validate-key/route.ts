@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
-  try {
-    const { apiKey } = await req.json();
+  const { apiKey } = await req.json();
 
+  try {
     const validKey = await prisma.apiKey.findFirst({
       where: {
         key: apiKey,
@@ -12,28 +12,36 @@ export async function POST(req: Request) {
       },
     });
 
-    if (!validKey) {
+    if (validKey) {
+      // Update usage count
+      await prisma.apiKey.update({
+        where: { id: validKey.id },
+        data: { usage: { increment: 1 } },
+      });
+
       return NextResponse.json(
-        { message: "Invalid API Key." },
-        { status: 401 }
+        {
+          data: { id: validKey.id },
+          message: "Valid API Key",
+        },
+        { status: 200 }
       );
     }
 
-    // Update usage count
-    await prisma.apiKey.update({
-      where: { id: validKey.id },
-      data: { usage: validKey.usage + 1 },
-    });
-
     return NextResponse.json(
-      { message: "Valid API Key, halaman /protected dapat diakses." },
-      { status: 200 }
+      {
+        error: "Invalid API key",
+        message: "API Key tidak ditemukan atau tidak aktif",
+      },
+      { status: 401 }
     );
-
-  } catch (error) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { message: "Terjadi kesalahan saat validasi." },
+      {
+        error: error instanceof Error ? error.message : "Unknown error",
+        message: "Terjadi kesalahan saat validasi API Key",
+      },
       { status: 500 }
     );
   }
-} 
+}
