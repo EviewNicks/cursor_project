@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     // Analisis repository
     const analyzer = new GithubAnalyzerService();
-    const { readme, analysis } = await analyzer.analyzeRepository(githubUrl);
+    const { analysis } = await analyzer.analyzeRepository(githubUrl);
 
     return NextResponse.json(
       {
@@ -48,7 +48,6 @@ export async function POST(req: Request) {
           id: validKey.id,
           repository: {
             url: githubUrl,
-            readme,
             analysis,
           },
         },

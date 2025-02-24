@@ -37,14 +37,12 @@ const parseReadmeContent = (content: string): GithubAnalysisResult => {
 
 export class GithubAnalyzerService {
   async analyzeRepository(githubUrl: string): Promise<{
-    readme: string;
     analysis: GithubAnalysisResult;
   }> {
     const readme = await getGithubReadme(githubUrl);
     const analysis = parseReadmeContent(readme);
 
     return {
-      readme,
       analysis,
     };
   }
