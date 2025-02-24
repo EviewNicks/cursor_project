@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { ChatOpenAI } from "@langchain/openai";
-import { PromptTemplate } from "@langchain/core/prompts";
-import { getGithubReadme } from "@/lib/github";
+import { ApiKeyService } from "@/lib/services/api-key.service";
+import { GithubAnalyzerService } from "@/lib/services/github-analyzer.service";
 
 // Tipe untuk request body
 type RequestBody = {
@@ -13,12 +11,10 @@ export async function POST(req: Request) {
   try {
     // Get API Key from header
     const apiKey = req.headers.get("x-api-key");
-    console.log("Received API Key:", apiKey);
-
     const body = (await req.json()) as RequestBody;
-    const githubUrl = body.githubUrl;
-    console.log("Received GitHub URL:", githubUrl);
+    const { githubUrl } = body;
 
+    // Validasi input
     if (!apiKey) {
       return NextResponse.json(
         {
@@ -38,88 +34,42 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    console.log("Checking database connection..."); // Logging untuk debug
 
-    // Validasi API Key
-    const validKey = await prisma.apiKey
-      .findFirst({
-        where: {
-          key: apiKey,
-          status: "active",
-        },
-      })
-      .catch((error) => {
-        console.error("Database error:", error); // Logging untuk debug
-        throw new Error(`Database connection error: ${error.message}`);
-      });
+    // Validasi API Key dan update usage
+    const validKey = await ApiKeyService.validateAndUpdateUsage(apiKey);
 
-    if (!validKey) {
-      return NextResponse.json(
-        {
-          error: "Invalid API key",
-          message: "API Key tidak ditemukan atau tidak aktif",
-        },
-        { status: 401 }
-      );
-    }
-
-    // Update penggunaan API
-    await prisma.apiKey.update({
-      where: { id: validKey.id },
-      data: { usage: { increment: 1 } },
-    });
-
-    // Fetch README content
-    console.log("Fetching README content...");
-    const readmeContent = await getGithubReadme(githubUrl);
-
-    // Verifikasi OPENAI_API_KEY
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error(
-        "OPENAI_API_KEY tidak ditemukan dalam environment variables"
-      );
-    }
-
-    // Implementasi GitHub summarization logic
-    const chat = new ChatOpenAI({
-      openAIApiKey: process.env.OPENAI_API_KEY,
-      modelName: "gpt-3.5-turbo",
-      temperature: 0.7,
-    });
-
-    const template = `Analyze and summarize the following GitHub repository:
-    URL: {githubUrl}
-
-    Please provide:
-    1. Brief overview of the project
-    2. Main features and functionalities
-    3. Technologies used
-    4. Project structure analysis
-    5. Key dependencies
-    6. Best practices implemented
-
-    Format the response in a clear, structured way.`;
-
-    const prompt = PromptTemplate.fromTemplate(template);
-    const chain = prompt.pipe(chat);
-
-    const response = await chain.invoke({
-      githubUrl: githubUrl,
-    });
+    // Analisis repository
+    const analyzer = new GithubAnalyzerService();
+    const { readme, analysis } = await analyzer.analyzeRepository(githubUrl);
 
     return NextResponse.json(
       {
         data: {
           id: validKey.id,
-          summary: response,
-          readme: readmeContent,
+          repository: {
+            url: githubUrl,
+            readme,
+            analysis,
+          },
         },
         message: "Repository berhasil dianalisis",
       },
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Error in GitHub summarizer:", error);
+    console.error("Error in GitHub analyzer:", error);
+
+    // Handle specific errors
+    if (error instanceof Error && error.message.includes("API Key")) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          message: "API Key tidak valid",
+        },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Unknown error",
